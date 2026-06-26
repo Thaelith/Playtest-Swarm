@@ -64,6 +64,8 @@ Open [http://localhost:3000](http://localhost:3000).
 | `CEREBRAS_API_KEY` | -- | Cerebras API key (mock mode if unset) |
 | `CEREBRAS_MODEL` | `gemma-4-31b` | Model ID |
 | `CEREBRAS_BASE_URL` | `https://api.cerebras.ai/v1` | API base URL |
+| `AI_MAX_TOKENS` | `4096` | Max output tokens. Increase to `8192` if responses are truncated by reasoning output |
+| `AI_COMPACT_REPORT` | -- | Set to `true` to request a smaller report (3 agents, 2 issues each). Useful for testing non-Cerebras providers that produce long reasoning traces before the final JSON |
 | `DEBUG_AI_RESPONSE` | -- | Set to `true` to log API response shape (local debugging only; never use in public demos) |
 
 Without `CEREBRAS_API_KEY`, the app runs in **mock mode** -- all agents return realistic demo results instantly.

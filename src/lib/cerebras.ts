@@ -42,7 +42,24 @@ function buildToolResults(economy: EconomyData) {
   };
 }
 
-const SYSTEM_PROMPT = `You are Playtest Swarm, a multi-agent game QA system. You analyze game screenshots and economy data to produce structured playtest reports.
+function buildSystemPrompt(): string {
+  const isCompact = process.env.AI_COMPACT_REPORT === "true";
+
+  const noThinking = `Do not output <think> tags. Do not output reasoning. Do not use reasoning_content. The first character of your response must be {. Return the final JSON object immediately.`;
+
+  if (isCompact) {
+    return `You are Playtest Swarm, a multi-agent game QA system. Output a compact JSON report.
+
+Produce exactly 3 agents: Vision Parser, Economy Analyst, Patch Designer.
+Max 2 UI issues. Max 2 balance issues. Max 3 balance patch changes.
+Keep exports short. No long markdown.
+
+${noThinking}
+
+Schema: { "summary": { "overallScore": number 0-100, "mainRisk": string, "recommendedAction": string }, "agents": [{ "name": string, "role": string, "status": "passed"|"warning"|"failed", "finding": string, "severity": "low"|"medium"|"high" }], "uiIssues": [{ "area": string, "problem": string, "evidence": string, "whyItHurts": string, "fix": string, "severity": "low"|"medium"|"high" }], "balanceIssues": [{ "system": string, "problem": string, "evidence": string, "suggestedChange": string, "severity": "low"|"medium"|"high" }], "balancePatch": { "version": string, "changes": [{ "path": string, "oldValue": string|number, "newValue": string|number, "reason": string }] }, "exports": { "playtestReportMarkdown": string, "uiFixBriefMarkdown": string, "balancePatchJson": string, "socialDemoSummary": string } }`;
+  }
+
+  return `You are Playtest Swarm, a multi-agent game QA system. You analyze game screenshots and economy data to produce structured playtest reports.
 
 You simulate the following 9 specialized agents. Each must produce exactly one finding:
 
@@ -58,7 +75,9 @@ You simulate the following 9 specialized agents. Each must produce exactly one f
 
 LOCAL_TOOL_RESULTS are provided below. Use them as ground truth. Do not invent numbers that contradict the tool output.
 
-Respond with a single JSON object matching the PlaytestSwarmReport schema:
+${noThinking}
+
+Respond with a single JSON object matching this schema:
 {
   "summary": { "overallScore": number 0-100, "mainRisk": string, "recommendedAction": string },
   "agents": [{ "name": string, "role": string, "status": "passed"|"warning"|"failed", "finding": string, "severity": "low"|"medium"|"high" }],
@@ -66,11 +85,8 @@ Respond with a single JSON object matching the PlaytestSwarmReport schema:
   "balanceIssues": [{ "system": string, "problem": string, "evidence": string, "suggestedChange": string, "severity": "low"|"medium"|"high" }],
   "balancePatch": { "version": string, "changes": [{ "path": string, "oldValue": string|number, "newValue": string|number, "reason": string }] },
   "exports": { "playtestReportMarkdown": string, "uiFixBriefMarkdown": string, "balancePatchJson": string, "socialDemoSummary": string }
+}`;
 }
-
-Return ONLY the JSON object. No markdown fences, no surrounding text.
-
-Do not output reasoning. Do not use reasoning_content. Return the final JSON object directly in assistant content.`;
 
 function buildUserPrompt(input: AnalyzeRequest): string {
   const toolResults = buildToolResults(input.economy);
@@ -356,7 +372,7 @@ export async function runCerebrasPlaytestAnalysis(
     throw new Error("Cerebras API key not configured. Set CEREBRAS_API_KEY environment variable.");
   }
 
-  const systemMessage = { role: "system" as const, content: SYSTEM_PROMPT };
+  const systemMessage = { role: "system" as const, content: buildSystemPrompt() };
 
   const hasScreenshot = !!input.screenshotBase64;
   const userMessage: { role: "user"; content: unknown } = hasScreenshot
@@ -409,15 +425,35 @@ export async function runCerebrasPlaytestAnalysis(
 
   const content = extractAssistantContent(data);
 
+  let processedContent = content;
+
+  if (processedContent.trim().startsWith("<think>")) {
+    const thinkEnd = processedContent.indexOf("</think>");
+    if (thinkEnd !== -1) {
+      const afterThink = processedContent.slice(thinkEnd + 8).trim();
+      if (afterThink.includes("{")) {
+        processedContent = afterThink;
+      } else {
+        throw new Error(
+          "Provider returned reasoning trace (<think>) but no JSON after </think>. Use a non-reasoning chat model, disable thinking, or increase AI_MAX_TOKENS."
+        );
+      }
+    } else {
+      throw new Error(
+        "Provider returned reasoning trace and hit length before final JSON. Use a non-reasoning chat model, disable thinking, or increase AI_MAX_TOKENS."
+      );
+    }
+  }
+
   const metrics = extractMetrics(data);
 
   let parsed: unknown;
-  const jsonStr = extractJSONFromResponse(content);
+  const jsonStr = extractJSONFromResponse(processedContent);
   try {
     parsed = JSON.parse(jsonStr);
   } catch {
     throw new Error(
-      `Failed to parse Cerebras response as JSON. Raw: ${content.slice(0, 300)}`
+      `Failed to parse Cerebras response as JSON. Raw: ${processedContent.slice(0, 300)}`
     );
   }
 
