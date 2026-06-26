@@ -1,0 +1,102 @@
+{
+  "gameName": "StarForge Idle RPG",
+  "genre": "Idle RPG",
+  "platform": "Mobile",
+  "targetSessionMinutes": 30,
+  "currencies": [
+    { "id": "gold", "name": "Gold", "icon": "coin" },
+    { "id": "gems", "name": "Gems", "icon": "gem" },
+    { "id": "soulDust", "name": "Soul Dust", "icon": "dust" }
+  ],
+  "rarities": [
+    {
+      "id": "common",
+      "name": "Common",
+      "color": "#9d9d9d",
+      "dropWeight": 50,
+      "statMultiplier": 1.0,
+      "expectedPerHour": 40
+    },
+    {
+      "id": "rare",
+      "name": "Rare",
+      "color": "#4169e1",
+      "dropWeight": 30,
+      "statMultiplier": 1.5,
+      "expectedPerHour": 18
+    },
+    {
+      "id": "epic",
+      "name": "Epic",
+      "color": "#9932cc",
+      "dropWeight": 15,
+      "statMultiplier": 2.2,
+      "expectedPerHour": 6
+    },
+    {
+      "id": "legendary",
+      "name": "Legendary",
+      "color": "#ff8c00",
+      "dropWeight": 5,
+      "statMultiplier": 3.5,
+      "expectedPerHour": 1.5
+    }
+  ],
+  "upgrades": [
+    {
+      "id": "forge_lvl",
+      "name": "Forge Level",
+      "baseCost": 100,
+      "costGrowth": 3.5,
+      "powerGain": 5,
+      "unlockMinute": 0
+    },
+    {
+      "id": "crit_chance",
+      "name": "Crit Chance",
+      "baseCost": 50,
+      "costGrowth": 1.8,
+      "powerGain": 3,
+      "unlockMinute": 5
+    },
+    {
+      "id": "attack_speed",
+      "name": "Attack Speed",
+      "baseCost": 80,
+      "costGrowth": 2.0,
+      "powerGain": 4,
+      "unlockMinute": 2
+    },
+    {
+      "id": "gold_mult",
+      "name": "Gold Multiplier",
+      "baseCost": 200,
+      "costGrowth": 2.5,
+      "powerGain": 10,
+      "unlockMinute": 15
+    }
+  ],
+  "itemTypes": [
+    { "slot": "weapon", "name": "Weapon", "baseStats": 20 },
+    { "slot": "armor", "name": "Armor", "baseStats": 15 },
+    { "slot": "ring", "name": "Ring", "baseStats": 8 },
+    { "slot": "amulet", "name": "Amulet", "baseStats": 5 }
+  ],
+  "prestige": {
+    "levels": [
+      { "tier": 1, "cost": 100000, "reward": "+5% Gold", "multiplier": 1.05 },
+      { "tier": 2, "cost": 500000, "reward": "+10% Gold", "multiplier": 1.15 },
+      { "tier": 3, "cost": 2000000, "reward": "+20% Gold + Unlock SuperCrit", "multiplier": 1.35 }
+    ]
+  },
+  "offlineIncome": {
+    "maxHours": 8,
+    "efficiency": 0.5
+  },
+  "unlocks": [
+    { "feature": "Forge", "unlockMinute": 0, "description": "Upgrade your gear at the forge" },
+    { "feature": "Crit Chance", "unlockMinute": 5, "description": "Chance to deal critical damage" },
+    { "feature": "Gold Multiplier", "unlockMinute": 15, "description": "Multiply all gold earned" },
+    { "feature": "Prestige", "unlockMinute": 25, "description": "Reset for permanent bonuses" }
+  ]
+}
