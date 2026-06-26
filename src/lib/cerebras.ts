@@ -197,25 +197,27 @@ function extractJSONFromResponse(raw: string): string {
   return jsonStr;
 }
 
-export async function runCerebrasPlaytestAnalysis(
-  input: AnalyzeRequest
-): Promise<PlaytestSwarmReport & { rawResponse?: { totalTokens?: number; completionTokens?: number; promptTokens?: number; timeInfo?: Record<string, unknown> } }> {
-  if (!isCerebrasConfigured()) {
-    throw new Error("Cerebras API key not configured. Set CEREBRAS_API_KEY environment variable.");
-  }
+type CerebrasRawResponse = {
+  totalTokens?: number;
+  completionTokens?: number;
+  promptTokens?: number;
+  timeInfo?: Record<string, unknown>;
+};
 
-  const messages = [
-    { role: "system" as const, content: SYSTEM_PROMPT },
-    { role: "user" as const, content: buildUserPrompt(input) },
-  ];
-
+async function callCerebrasAPI(
+  messages: { role: string; content: unknown }[],
+  withResponseFormat: boolean
+): Promise<{ data: Record<string, unknown> }> {
   const body: Record<string, unknown> = {
     model: CEREBRAS_MODEL,
     messages,
     max_tokens: 4096,
     temperature: 0.3,
-    response_format: { type: "json_object" },
   };
+
+  if (withResponseFormat) {
+    body.response_format = { type: "json_object" };
+  }
 
   const response = await fetch(`${CEREBRAS_BASE_URL}/chat/completions`, {
     method: "POST",
@@ -228,30 +230,112 @@ export async function runCerebrasPlaytestAnalysis(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(
-      `Cerebras API error ${response.status}: ${errorText.slice(0, 500)}`
-    );
+    const status = response.status;
+    throw { status, errorText, isResponseFormatError: false };
   }
 
   const data = await response.json();
-  const raw = data.choices?.[0]?.message?.content;
-  if (!raw || typeof raw !== "string") {
+  return { data };
+}
+
+function isResponseFormatError(err: unknown): boolean {
+  if (err && typeof err === "object" && "status" in err) {
+    const e = err as { status: number; errorText: string };
+    if (e.status === 400) {
+      const lower = e.errorText.toLowerCase();
+      return (
+        lower.includes("response_format") ||
+        lower.includes("unsupported parameter") ||
+        lower.includes("invalid request") ||
+        lower.includes("json_object") ||
+        lower.includes("additional property")
+      );
+    }
+  }
+  return false;
+}
+
+function extractMetrics(data: Record<string, unknown>): CerebrasRawResponse {
+  const usage = (data.usage as Record<string, unknown>) || {};
+  return {
+    totalTokens: usage.total_tokens as number | undefined,
+    completionTokens: usage.completion_tokens as number | undefined,
+    promptTokens: usage.prompt_tokens as number | undefined,
+    timeInfo: data.time_info as Record<string, unknown> | undefined,
+  };
+}
+
+export async function runCerebrasPlaytestAnalysis(
+  input: AnalyzeRequest
+): Promise<PlaytestSwarmReport & { rawResponse?: CerebrasRawResponse }> {
+  if (!isCerebrasConfigured()) {
+    throw new Error("Cerebras API key not configured. Set CEREBRAS_API_KEY environment variable.");
+  }
+
+  const systemMessage = { role: "system" as const, content: SYSTEM_PROMPT };
+
+  const hasScreenshot = !!input.screenshotBase64;
+  const userMessage: { role: "user"; content: unknown } = hasScreenshot
+    ? {
+        role: "user",
+        content: [
+          { type: "text", text: buildUserPrompt(input) },
+          { type: "image_url", image_url: { url: input.screenshotBase64 } },
+        ],
+      }
+    : {
+        role: "user",
+        content: buildUserPrompt(input),
+      };
+
+  const messages = [systemMessage, userMessage];
+
+  let data: Record<string, unknown>;
+  try {
+    const result = await callCerebrasAPI(messages, true);
+    data = result.data;
+  } catch (err) {
+    if (isResponseFormatError(err)) {
+      console.warn(
+        "response_format not supported by this endpoint, retrying without it"
+      );
+      try {
+        const retryResult = await callCerebrasAPI(messages, false);
+        data = retryResult.data;
+      } catch (retryErr) {
+        const e = retryErr as { status?: number; errorText?: string };
+        throw new Error(
+          `Cerebras API error ${e.status ?? "?"}: ${(e.errorText ?? String(retryErr)).slice(0, 500)}`
+        );
+      }
+    } else {
+      const e = err as { status?: number; errorText?: string };
+      throw new Error(
+        `Cerebras API error ${e.status ?? "?"}: ${(e.errorText ?? String(err)).slice(0, 500)}`
+      );
+    }
+  }
+
+  const raw = data.choices
+    ? (data.choices as Record<string, unknown>[])[0]?.message
+    : undefined;
+  const content = raw
+    ? (raw as Record<string, unknown>).content
+    : undefined;
+
+  if (!content || typeof content !== "string") {
     throw new Error("Empty or invalid response from Cerebras API");
   }
 
-  const usage = data.usage || {};
-  const totalTokens = usage.total_tokens as number | undefined;
-  const completionTokens = usage.completion_tokens as number | undefined;
-  const promptTokens = usage.prompt_tokens as number | undefined;
-  const timeInfo = data.time_info as Record<string, unknown> | undefined;
+  const metrics = extractMetrics(data);
 
   let parsed: unknown;
-  const jsonStr = extractJSONFromResponse(raw);
+  const jsonStr = extractJSONFromResponse(content);
   try {
     parsed = JSON.parse(jsonStr);
   } catch {
     throw new Error(
-      `Failed to parse Cerebras response as JSON. Raw: ${raw.slice(0, 300)}`
+      `Failed to parse Cerebras response as JSON. Raw: ${content.slice(0, 300)}`
     );
   }
 
@@ -259,6 +343,6 @@ export async function runCerebrasPlaytestAnalysis(
 
   return {
     ...report,
-    rawResponse: { totalTokens, completionTokens, promptTokens, timeInfo },
+    rawResponse: metrics,
   };
 }

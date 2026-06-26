@@ -73,10 +73,11 @@ When setting up for the live hackathon demo:
 
 1. Set `CEREBRAS_API_KEY` in `.env.local`
 2. Verify text-only call to `gemma-4-31b` works
-3. Verify image input (base64 screenshot) is accepted
+3. Verify image input -- screenshot is sent as `image_url` in OpenAI multimodal format (base64 data URI from FileReader)
 4. Verify structured JSON output is parsed and validated
-5. Verify speed metrics populate in the Cerebras Speed Demo panel
-6. If any step fails, the app falls back to mock mode with a visible warning
+5. If `response_format` is unsupported by the endpoint, the adapter automatically retries without it and logs a warning
+6. Verify speed metrics populate in the Cerebras Speed Demo panel
+7. If any step fails, the app falls back to mock mode with a visible warning
 
 The adapter in `src/lib/cerebras.ts` sends the full multimodal prompt (image + economy + local tool results) to the OpenAI-compatible `/chat/completions` endpoint. The response is parsed, validated via `validateAndNormalizeReport`, and merged with timing metrics.
 
