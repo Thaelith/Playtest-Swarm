@@ -27,11 +27,13 @@ export default function AgentTimeline({ report, loading }: Props) {
           Agents Running
         </h3>
         {fakeAgents.map((name, i) => (
-          <div key={name} className="flex items-center gap-3">
-            <div
-              className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"
-              style={{ animationDelay: `${i * 150}ms` }}
-            />
+          <div
+            key={name}
+            className="flex items-center gap-3 p-2 rounded-lg bg-zinc-900/50 border border-zinc-800"
+          >
+            <span className="text-xs font-mono text-zinc-600 w-5 text-right">
+              {(i + 1).toString().padStart(2, "0")}
+            </span>
             <span className="text-sm text-zinc-500">{name}</span>
             <span className="text-xs text-zinc-600 ml-auto">
               {i === 0 ? "analyzing..." : "queued"}
@@ -44,10 +46,16 @@ export default function AgentTimeline({ report, loading }: Props) {
 
   if (!report) return null;
 
-  const statusColor: Record<string, string> = {
-    passed: "bg-green-500",
-    warning: "bg-yellow-500",
-    failed: "bg-red-500",
+  const statusLabel: Record<string, string> = {
+    passed: "PASS",
+    warning: "WARN",
+    failed: "FAIL",
+  };
+
+  const statusStyle: Record<string, string> = {
+    passed: "bg-green-900/40 text-green-400 border-green-800/40",
+    warning: "bg-yellow-900/40 text-yellow-400 border-yellow-800/40",
+    failed: "bg-red-900/40 text-red-400 border-red-800/40",
   };
 
   return (
@@ -55,12 +63,14 @@ export default function AgentTimeline({ report, loading }: Props) {
       <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-3">
         Agent Results ({report.agents.length})
       </h3>
-      {report.agents.map((agent) => (
+      {report.agents.map((agent, i) => (
         <div
           key={agent.name}
-          className="flex items-center gap-3 p-2 rounded-lg bg-zinc-900/50 border border-zinc-800"
+          className="flex items-center gap-3 p-3 rounded-lg bg-zinc-900/50 border border-zinc-800"
         >
-          <div className={`h-2.5 w-2.5 rounded-full ${statusColor[agent.status]}`} />
+          <span className="text-xs font-mono text-zinc-600 w-5 text-right">
+            {(i + 1).toString().padStart(2, "0")}
+          </span>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-zinc-200">
@@ -81,15 +91,9 @@ export default function AgentTimeline({ report, loading }: Props) {
             <p className="text-xs text-zinc-500 mt-0.5 line-clamp-2">{agent.finding}</p>
           </div>
           <span
-            className={`text-[10px] font-semibold uppercase ${
-              agent.status === "passed"
-                ? "text-green-400"
-                : agent.status === "warning"
-                ? "text-yellow-400"
-                : "text-red-400"
-            }`}
+            className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border uppercase ${statusStyle[agent.status]}`}
           >
-            {agent.status}
+            {statusLabel[agent.status]}
           </span>
         </div>
       ))}

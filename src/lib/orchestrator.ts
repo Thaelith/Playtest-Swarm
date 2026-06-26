@@ -7,21 +7,56 @@ export async function runPlaytest(input: AnalyzeRequest): Promise<PlaytestSwarmR
 
   if (isCerebrasConfigured()) {
     try {
-      const result = await runCerebrasPlaytestAnalysis(input);
+      const rawResult = await runCerebrasPlaytestAnalysis(input);
+      const raw = "rawResponse" in rawResult
+        ? (rawResult as typeof rawResult & { rawResponse: Record<string, unknown> }).rawResponse
+        : undefined;
+
+      const completionTokens = raw?.completionTokens as number | undefined;
       const endTime = Date.now();
+      const totalTimeSeconds = (endTime - startTime) / 1000;
+
+      const tokensPerSecond = totalTimeSeconds > 0 && completionTokens
+        ? completionTokens / totalTimeSeconds
+        : undefined;
+
+      const { rawResponse: _r, ...result } = rawResult as typeof rawResult & { rawResponse?: unknown };
+      void _r;
+
       return {
         ...result,
         demoMetrics: {
-          ...result.demoMetrics,
           model: process.env.CEREBRAS_MODEL || "gemma-4-31b",
           mode: "cerebras",
-          totalTimeSeconds: (endTime - startTime) / 1000,
+          totalTimeSeconds,
+          tokensPerSecond,
           agentsRun: result.agents.length,
           toolCallsRun: 6,
         },
       };
     } catch (error) {
-      console.error("Cerebras API call failed, falling back to mock mode:", error);
+      console.error(
+        "Cerebras API call failed, falling back to mock mode:",
+        error instanceof Error ? error.message : error
+      );
+
+      const fallbackReport = buildMockReport(input, startTime);
+      return {
+        ...fallbackReport,
+        demoMetrics: {
+          ...fallbackReport.demoMetrics,
+          mode: "mock",
+          cerebrasError:
+            "Cerebras API unavailable. Results are mock-generated. Original error: " +
+            (error instanceof Error ? error.message : String(error)),
+        },
+        summary: {
+          ...fallbackReport.summary,
+          recommendedAction:
+            "[CEREBRAS FALLBACK: Real API failed, using mock analysis] " +
+            fallbackReport.summary.recommendedAction,
+        },
+      };
     }
   }
 

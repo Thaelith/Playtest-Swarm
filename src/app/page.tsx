@@ -82,7 +82,7 @@ export default function Home() {
       <header className="border-b border-zinc-800">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="flex items-center gap-3 mb-3">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-sm font-bold">
+            <div className="h-8 w-8 rounded-lg bg-white text-black flex items-center justify-center text-sm font-bold">
               PS
             </div>
             <h1 className="text-2xl font-bold tracking-tight">Playtest Swarm</h1>
@@ -179,7 +179,7 @@ export default function Home() {
             <button
               onClick={runAnalysis}
               disabled={loading || !economy}
-              className="w-full py-4 rounded-xl font-semibold text-base transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white shadow-lg shadow-violet-900/20"
+              className="w-full py-4 rounded-xl font-semibold text-base transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-white text-black hover:bg-zinc-200 border border-zinc-700"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">

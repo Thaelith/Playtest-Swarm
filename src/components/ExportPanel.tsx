@@ -41,7 +41,7 @@ export default function ExportPanel({ report }: Props) {
     {
       label: "Social Summary",
       content: report.exports.socialDemoSummary,
-      icon: "📢",
+      icon: "#",
     },
   ];
 

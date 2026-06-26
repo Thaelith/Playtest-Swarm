@@ -11,6 +11,7 @@ export type PlaytestSwarmReport = {
     tokensPerSecond?: number;
     agentsRun: number;
     toolCallsRun: number;
+    cerebrasError?: string;
   };
   agents: {
     name: string;

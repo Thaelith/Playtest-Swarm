@@ -350,7 +350,7 @@ Score: 42/100
 Top risk: Mid-game dead zone at minute 10-18  
 Fastest fix: Increase touch targets to 56px  
 
-This tool would have saved our last playtest $2,000 and 3 weeks of iteration. 🔥
+This tool would have saved our last playtest $2,000 and 3 weeks of iteration.
 
 Built with Cerebras Gemma 4 31B for real-time AI game analysis.
 `;
