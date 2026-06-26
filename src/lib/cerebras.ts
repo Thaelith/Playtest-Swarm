@@ -68,7 +68,9 @@ Respond with a single JSON object matching the PlaytestSwarmReport schema:
   "exports": { "playtestReportMarkdown": string, "uiFixBriefMarkdown": string, "balancePatchJson": string, "socialDemoSummary": string }
 }
 
-Return ONLY the JSON object. No markdown fences, no surrounding text.`;
+Return ONLY the JSON object. No markdown fences, no surrounding text.
+
+Do not output reasoning. Do not use reasoning_content. Return the final JSON object directly in assistant content.`;
 
 function buildUserPrompt(input: AnalyzeRequest): string {
   const toolResults = buildToolResults(input.economy);
@@ -229,30 +231,47 @@ function extractAssistantContent(data: Record<string, unknown>): string {
   if (firstChoice) {
     const message = firstChoice.message as Record<string, unknown> | undefined;
 
+    if (message?.reasoning_content !== undefined && message?.reasoning_content !== null) {
+      const reasoning =
+        typeof message.reasoning_content === "string" ? message.reasoning_content : "";
+      const hasFinalContent =
+        typeof message.content === "string" && message.content.trim().length > 0;
+
+      if (reasoning.trim().length > 0 && !hasFinalContent) {
+        throw new Error(
+          "Provider returned reasoning_content but no final assistant content. Use a non-reasoning model, increase max_tokens, or disable reasoning for this provider."
+        );
+      }
+    }
+
     if (message?.content !== undefined && message?.content !== null) {
       if (typeof message.content === "string") {
-        return message.content;
+        const trimmed = message.content.trim();
+        if (trimmed.length > 0) return message.content;
       }
       if (Array.isArray(message.content)) {
         const joined = joinContentParts(message.content as unknown[]);
-        if (joined) return joined;
+        if (joined.trim().length > 0) return joined;
       }
     }
 
-    if (typeof firstChoice.text === "string" && firstChoice.text) {
-      return firstChoice.text;
+    if (typeof firstChoice.text === "string") {
+      const trimmed = firstChoice.text.trim();
+      if (trimmed.length > 0) return firstChoice.text;
     }
   }
 
-  if (typeof data.output_text === "string" && data.output_text) {
-    return data.output_text;
+  if (typeof data.output_text === "string") {
+    const trimmed = data.output_text.trim();
+    if (trimmed.length > 0) return data.output_text;
   }
 
   const output = Array.isArray(data.output) ? (data.output as Record<string, unknown>[]) : [];
   if (output.length > 0) {
     const outContent = Array.isArray(output[0].content) ? (output[0].content as Record<string, unknown>[]) : [];
     if (outContent.length > 0 && typeof outContent[0].text === "string") {
-      return outContent[0].text;
+      const trimmed = outContent[0].text.trim();
+      if (trimmed.length > 0) return outContent[0].text;
     }
   }
 
@@ -272,10 +291,11 @@ async function callCerebrasAPI(
   messages: { role: string; content: unknown }[],
   withResponseFormat: boolean
 ): Promise<{ data: Record<string, unknown> }> {
+  const maxTokens = Number(process.env.AI_MAX_TOKENS) || 4096;
   const body: Record<string, unknown> = {
     model: CEREBRAS_MODEL,
     messages,
-    max_tokens: 4096,
+    max_tokens: maxTokens,
     temperature: 0.3,
   };
 
