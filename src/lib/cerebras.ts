@@ -52,7 +52,12 @@ function buildSystemPrompt(): string {
 
 Produce exactly 3 agents: Vision Parser, Economy Analyst, Patch Designer.
 Max 2 UI issues. Max 2 balance issues. Max 3 balance patch changes.
-Keep exports short. No long markdown.
+Keep exports short. No long markdown. No extra prose.
+
+Keep every string under 240 characters.
+Do not produce long markdown exports.
+Use concise evidence and fixes.
+The goal is parser stability, not exhaustive analysis.
 
 ${noThinking}
 
@@ -443,6 +448,13 @@ export async function runCerebrasPlaytestAnalysis(
         "Provider returned reasoning trace and hit length before final JSON. Use a non-reasoning chat model, disable thinking, or increase AI_MAX_TOKENS."
       );
     }
+  }
+
+  const choices = Array.isArray(data.choices) ? (data.choices as Record<string, unknown>[]) : [];
+  if (choices.length > 0 && choices[0].finish_reason === "length") {
+    throw new Error(
+      "Provider response was truncated because max_tokens was too low. Increase AI_MAX_TOKENS or enable AI_COMPACT_REPORT."
+    );
   }
 
   const metrics = extractMetrics(data);

@@ -70,6 +70,14 @@ Open [http://localhost:3000](http://localhost:3000).
 
 Without `CEREBRAS_API_KEY`, the app runs in **mock mode** -- all agents return realistic demo results instantly.
 
+**Recommended local provider test environment:**
+
+```env
+DEBUG_AI_RESPONSE=true
+AI_MAX_TOKENS=12000
+AI_COMPACT_REPORT=true
+```
+
 ## Real Cerebras Integration Checklist
 
 When setting up for the live hackathon demo:
