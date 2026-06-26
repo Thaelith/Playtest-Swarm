@@ -64,6 +64,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `CEREBRAS_API_KEY` | -- | Cerebras API key (mock mode if unset) |
 | `CEREBRAS_MODEL` | `gemma-4-31b` | Model ID |
 | `CEREBRAS_BASE_URL` | `https://api.cerebras.ai/v1` | API base URL |
+| `DEBUG_AI_RESPONSE` | -- | Set to `true` to log API response shape (local debugging only; never use in public demos) |
 
 Without `CEREBRAS_API_KEY`, the app runs in **mock mode** -- all agents return realistic demo results instantly.
 

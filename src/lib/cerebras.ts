@@ -197,6 +197,70 @@ function extractJSONFromResponse(raw: string): string {
   return jsonStr;
 }
 
+function joinContentParts(parts: unknown[]): string {
+  const texts: string[] = [];
+  for (const part of parts) {
+    if (!part || typeof part !== "object") continue;
+    const p = part as Record<string, unknown>;
+    if (typeof p.text === "string") texts.push(p.text);
+    else if (typeof p.content === "string") texts.push(p.content);
+  }
+  return texts.join("\n");
+}
+
+function describeShape(data: Record<string, unknown>): string {
+  const topKeys = Object.keys(data).join(", ") || "(none)";
+  const choices = Array.isArray(data.choices) ? (data.choices as Record<string, unknown>[]) : [];
+  const firstChoice = choices[0];
+  const choiceKeys = firstChoice ? Object.keys(firstChoice).join(", ") : "(no choices)";
+  const message =
+    firstChoice && typeof firstChoice.message === "object" && firstChoice.message
+      ? (firstChoice.message as Record<string, unknown>)
+      : null;
+  const messageKeys = message ? Object.keys(message).join(", ") : "(no message)";
+  return `top-level keys: [${topKeys}], choice[0] keys: [${choiceKeys}], message keys: [${messageKeys}]`;
+}
+
+function extractAssistantContent(data: Record<string, unknown>): string {
+  const choices = Array.isArray(data.choices) ? (data.choices as Record<string, unknown>[]) : [];
+
+  const firstChoice = choices[0];
+
+  if (firstChoice) {
+    const message = firstChoice.message as Record<string, unknown> | undefined;
+
+    if (message?.content !== undefined && message?.content !== null) {
+      if (typeof message.content === "string") {
+        return message.content;
+      }
+      if (Array.isArray(message.content)) {
+        const joined = joinContentParts(message.content as unknown[]);
+        if (joined) return joined;
+      }
+    }
+
+    if (typeof firstChoice.text === "string" && firstChoice.text) {
+      return firstChoice.text;
+    }
+  }
+
+  if (typeof data.output_text === "string" && data.output_text) {
+    return data.output_text;
+  }
+
+  const output = Array.isArray(data.output) ? (data.output as Record<string, unknown>[]) : [];
+  if (output.length > 0) {
+    const outContent = Array.isArray(output[0].content) ? (output[0].content as Record<string, unknown>[]) : [];
+    if (outContent.length > 0 && typeof outContent[0].text === "string") {
+      return outContent[0].text;
+    }
+  }
+
+  throw new Error(
+    `Could not extract assistant content from API response. ${describeShape(data)}`
+  );
+}
+
 type CerebrasRawResponse = {
   totalTokens?: number;
   completionTokens?: number;
@@ -316,16 +380,14 @@ export async function runCerebrasPlaytestAnalysis(
     }
   }
 
-  const raw = data.choices
-    ? (data.choices as Record<string, unknown>[])[0]?.message
-    : undefined;
-  const content = raw
-    ? (raw as Record<string, unknown>).content
-    : undefined;
-
-  if (!content || typeof content !== "string") {
-    throw new Error("Empty or invalid response from Cerebras API");
+  if (process.env.DEBUG_AI_RESPONSE === "true") {
+    console.log(
+      "AI raw response:",
+      JSON.stringify(data, null, 2).slice(0, 5000)
+    );
   }
+
+  const content = extractAssistantContent(data);
 
   const metrics = extractMetrics(data);
 
